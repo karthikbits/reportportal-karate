@@ -12,40 +12,38 @@ import java.util.Optional;
  *
  * @author kvijayapandian
  */
-public enum  StatusEnum {
-    //@formatter:off
-	IN_PROGRESS("", false),
-	PASSED("passed", true),
-	FAILED("failed", false),
-	STOPPED("stopped", false), //status for manually stopped launches
-	SKIPPED("skipped", false),
-	INTERRUPTED("failed", false),
-	//RESETED("reseted"), //status for items with deleted descendants
-	CANCELLED("cancelled", false); //soupUI specific status
-	//@formatter:on
+public enum StatusEnum {
 
-	private final String executionCounterField;
+    IN_PROGRESS("", false),
+    PASSED("passed", true),
+    FAILED("failed", false),
+    STOPPED("stopped", false),
+    SKIPPED("skipped", false),
+    INTERRUPTED("failed", false),
+    CANCELLED("cancelled", false);
 
-	private final boolean positive;
+    private final String executionCounterField;
 
-	StatusEnum(String executionCounterField, boolean isPositive) {
-		this.executionCounterField = executionCounterField;
-		this.positive = isPositive;
-	}
+    private final boolean positive;
 
-	public static Optional<StatusEnum> fromValue(String value) {
-		return Arrays.stream(StatusEnum.values()).filter(status -> status.name().equalsIgnoreCase(value)).findAny();
-	}
+    StatusEnum(String executionCounterField, boolean isPositive) {
+        this.executionCounterField = executionCounterField;
+        this.positive = isPositive;
+    }
 
-	public static boolean isPresent(String name) {
-		return fromValue(name).isPresent();
-	}
+    public static Optional<StatusEnum> fromValue(String value) {
+        return Arrays.stream(StatusEnum.values()).filter(status -> status.name().equalsIgnoreCase(value)).findAny();
+    }
 
-	public String getExecutionCounterField() {
-		return executionCounterField;
-	}
+    public static boolean isPresent(String name) {
+        return fromValue(name).isPresent();
+    }
 
-	public boolean isPositive() {
-		return positive;
-	}
+    public String getExecutionCounterField() {
+        return executionCounterField;
+    }
+
+    public boolean isPositive() {
+        return positive;
+    }
 }
