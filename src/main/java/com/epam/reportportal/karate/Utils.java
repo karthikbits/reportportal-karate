@@ -5,18 +5,18 @@
  */
 package com.epam.reportportal.karate;
 
-import com.epam.reportportal.service.Launch;
-import com.epam.ta.reportportal.ws.model.FinishTestItemRQ;
+import com.epam.reportportal.service.ReportPortal;
 import com.epam.ta.reportportal.ws.model.attribute.ItemAttributesRQ;
+import com.epam.ta.reportportal.ws.model.log.SaveLogRQ;
 import com.intuit.karate.core.*;
+import java.util.Calendar;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import io.reactivex.Maybe;
-import java.util.Calendar;
-import java.util.Date;
+import rp.com.google.common.base.Function;
+import rp.com.google.common.base.Strings;
 
 /**
  *
@@ -25,129 +25,131 @@ import java.util.Date;
 public class Utils {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Utils.class);
-    private static final String TABLE_INDENT = "          ";
-    private static final String TABLE_SEPARATOR = "|";
-    private static final String DOCSTRING_DECORATOR = "\n\"\"\"\n";
-    private static final String PASSED = "passed";
-    private static final String SKIPPED = "skipped";
-    private static final String INFO = "INFO";
-    private static final String WARN = "WARN";
-    private static final String ERROR = "ERROR";
-    private static final String EMPTY = "";
-    private static final String ONE_SPACE = " ";
-    private static final String HOOK_ = "Hook: ";
-    private static final String NEW_LINE = "\r\n";
-
-    private static final String DEFINITION_MATCH_FIELD_NAME = "definitionMatch";
-    private static final String STEP_DEFINITION_FIELD_NAME = "stepDefinition";
-    private static final String GET_LOCATION_METHOD_NAME = "getLocation";
-    private static final String METHOD_OPENING_BRACKET = "(";
-
-    static void printFeatureResult(FeatureResult featureResult) {
-        
-        try{
-             System.out.println(" **** FEATURE RESULT *************************** ");
-
-       
-        System.out.println("\t\tcallName=" + featureResult.getCallName());
-         System.out.println("\t\tFailedCount=" + featureResult.getFailedCount());
-        System.out.println("\t\tScenarioCount=" + featureResult.getScenarioCount());
-        System.out.println("\t\tScenarioResults=" +featureResult.getScenarioResults());
-        System.out.println("\t\tStepResults=" + featureResult.getStepResults());
-        System.out.println(" **** END FEATURE RESULT  *************************** ");
-             System.out.println("\t\tResults=" + featureResult.getResults());
-   
-        }catch (Exception ex){
-        ex.printStackTrace();
-
-        }
-                  
-        
-       }
 
     private Utils() {
         throw new AssertionError("No instances should exist for the class!");
     }
-    
-        static void finishTestItem(Launch rp, Maybe<String> itemId) {
-        finishTestItem(rp, itemId, null);
-    }
 
-    static Date finishTestItem(Launch rp, Maybe<String> itemId, String status) {
-        if (itemId == null) {
-            LOGGER.error("BUG: Trying to finish unspecified test item.");
-            return null;
+    static void sendLog(final String itemUuid1, final String message, final String level, final SaveLogRQ.File file) {
+
+        if (Strings.isNullOrEmpty(message)) {
+            return;
         }
-        FinishTestItemRQ rq = new FinishTestItemRQ();
-        Date endTime = Calendar.getInstance().getTime();
-        rq.setEndTime(endTime);
-        rq.setStatus(status);
-        rp.finishTestItem(itemId, rq);
-        return endTime;
-    }
-    
-
-    /**
-     * Generate name representation
-     *
-     * @param prefix - substring to be prepended at the beginning (optional)
-     * @param infix - substring to be inserted between keyword and name
-     * @param argument - main text to process
-     * @param suffix - substring to be appended at the end (optional)
-     * @return transformed string
-     */
-    //TODO: pass Node as argument, not test event
-    static String buildNodeName(String prefix, String infix, String argument, String suffix) {
-        return buildName(prefix, infix, argument, suffix);
+        ReportPortal.emitLog(new Function<String, SaveLogRQ>() {
+            @Override
+            public SaveLogRQ apply(String itemUuid) {
+                SaveLogRQ rq = new SaveLogRQ();
+                rq.setMessage(message);
+                rq.setUuid(itemUuid);
+                rq.setItemUuid(itemUuid1);
+                rq.setLevel(level);
+                rq.setLogTime(Calendar.getInstance().getTime());
+                if (file != null) {
+                    rq.setFile(file);
+                }
+                return rq;
+            }
+        });
     }
 
-    private static String buildName(String prefix, String infix, String argument, String suffix) {
-        return (prefix == null ? EMPTY : prefix) + infix + argument + (suffix == null ? EMPTY : suffix);
-    }
-
-    /**
-     * Transform tags from Cucumber to RP format
-     *
-     * @param tags - Cucumber tags
-     * @return set of tags
-     */
     public static Set<ItemAttributesRQ> extractAttributes(List<Tag> tags) {
         Set<ItemAttributesRQ> attributes = new HashSet<ItemAttributesRQ>();
-        for (Tag tag : tags) {
+        tags.forEach((tag) -> {
             attributes.add(new ItemAttributesRQ(null, tag.getName()));
-        }
+        });
         return attributes;
     }
 
-    public static void printExecutionContext(ExecutionContext executionContext) {
-        System.out.println(" **** FEATURE EXECUTION CONTEXT *************************** ");
-        System.out.println("\t\tparentPath=" + executionContext.featureContext.parentPath);
-    
-        System.out.println(" **** END FEATURE EXECUTION CONTEXT *************************** ");
+    static String printStepResult(StepResult stepResult) {
+        StringBuilder sb = new StringBuilder();
+        try {
+            sb.append("\n\t\t\t[");
+            sb.append("\n\t\t\terrorMessage=").append(stepResult.getErrorMessage());
+            sb.append("\n\t\t\tstepLog=" + stepResult.getStepLog());
+            sb.append("\n\t\t\tisFailed=" + stepResult.getResult().isFailed());
+            sb.append("\n\t\t\tstatus=").append(stepResult.getResult().getStatus());
+            //  sb.append(" stepText" + stepResult.getStep().getText());
+            sb.append("\n\t\t\tstepdocString=").append(stepResult.getStep().getDocString());
+            sb.append("\n\t\t\t]");
+        } catch (Exception ex) {
+            LOGGER.error("Exception wile printing step result", ex);
+        }
+        return sb.toString();
     }
 
-    public static void printFeature(Feature feature) {
-        System.out.println(" **** FEATURE *************************** ");
-        System.out.println("\t\tname=" + feature.getName());
-        System.out.println("\t\tdescription=" + feature.getDescription());
-        System.out.println("\t\tcallTag=" + feature.getCallTag());
-         System.out.println("\t\tcallLine=" + feature.getCallLine());
-        System.out.println("\t\tnameForReport=" + feature.getNameForReport());
-        System.out.println("\t\tresource=" + feature.getResource());
-        System.out.println("\t\ttags=" + feature.getTags());
-        System.out.println("\t\tisBackgroundPresent=" + feature.isBackgroundPresent());
-        System.out.println(" **** END FEATURE *************************** ");
+    static String getURI(Feature feature) {
+        return feature.getResource().getPath().toString();
+    }
+
+    static String printScenarioResult(ScenarioResult scenarioResult) {
+        StringBuilder sb = new StringBuilder();
+        try {
+
+            sb.append("\n\t\t[");
+            sb.append("\n\t\tstartTime=" + scenarioResult.getStartTime());
+            sb.append("\n\t\tendTime=" + scenarioResult.getEndTime());
+            sb.append("\n\t\tfailureMessageForDisplay=" + scenarioResult.getFailureMessageForDisplay());
+            sb.append("\n\t\tstepResultsSize=" + scenarioResult.getStepResults().size());
+            sb.append("\n\t\tscenarioName=" + scenarioResult.getScenario().getName());
+            sb.append("\n\t\tscenarioNameForReport=" + scenarioResult.getScenario().getNameForReport());
+            sb.append("\n\t\tscenarioKeyword=" + scenarioResult.getScenario().getKeyword());
+            sb.append("\n\t\tscenarioDescription=" + scenarioResult.getScenario().getDescription());
+            sb.append("\n\t\tstepResults=[");
+            for (StepResult stepResult : scenarioResult.getStepResults()) {
+                sb.append(Utils.printStepResult(stepResult));
+            }
+            sb.append("\n\t\t]");
+
+        } catch (Exception ex) {
+            LOGGER.error("Exception wile printing scenario result", ex);
+
+        }
+        return sb.toString();
+    }
+
+    static String printFeatureResult(FeatureResult featureResult) {
+        StringBuffer sb = new StringBuffer();
+        try {
+            sb.append("[");
+            sb.append("\n\tcallName=" + featureResult.getCallName());
+            sb.append("\n\tscenarioCount=" + featureResult.getScenarioCount());
+            sb.append("\n\tfailedCount=" + featureResult.getFailedCount());
+            sb.append("\n\tstepResultsSize=" + featureResult.getStepResults().size());
+            sb.append("\n\tresults=" + featureResult.getResults());
+            sb.append("\n\tscenarioResults=[");
+            for (ScenarioResult scenarioResult : featureResult.getScenarioResults()) {
+                sb.append(Utils.printScenarioResult(scenarioResult));
+            }
+            sb.append("\n\t]");
+            sb.append("\n]");
+        } catch (Exception ex) {
+            LOGGER.error("Exception wile printing feature result", ex);
+
+        }
+        return sb.toString();
 
     }
-    
-       public static void printScenario(Scenario scenario) {
-        System.out.println(" **** SCENARIO *************************** ");
-        System.out.println("\t\tName=" + scenario.getName());
-        System.out.println("\t\tKeyword=" + scenario.getKeyword());
-        System.out.println("\t\tUniqueId=" + scenario.getUniqueId());
-         System.out.println("\t\tDescription=" + scenario.getDescription());
-        System.out.println("\t\tIndex=" + scenario.getIndex());
-        System.out.println(" **** END SCENARIO *************************** ");
+
+    public static String printFeature(Feature feature) {
+        StringBuilder sb = new StringBuilder();
+        try {
+            sb.append("[");
+            sb.append("\n\tname=" + feature.getName());
+            sb.append("\n\tdescription=" + feature.getDescription());
+            sb.append("\n\tcallTag=" + feature.getCallTag());
+            sb.append("\n\tcallLine=" + feature.getCallLine());
+            sb.append("\n\tnameForReport=" + feature.getNameForReport());
+            sb.append("\n\tresource=" + feature.getResource());
+            sb.append("\n\tags=" + feature.getTags());
+            sb.append("\n\tisBackgroundPresent=" + feature.isBackgroundPresent());
+            sb.append("\n]");
+        } catch (Exception ex) {
+            LOGGER.error("Exception wile printing feature", ex);;
+
+        }
+
+        return sb.toString();
 
     }
+
 }
