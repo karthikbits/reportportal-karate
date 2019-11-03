@@ -1,3 +1,3 @@
 # reportportal-karate
-Karate extension for report portal Integration https://github.com/reportportal
+Karate extension for report portal Integration https://reportportal.io/
 
